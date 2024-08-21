@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -68,7 +69,8 @@
             margin-bottom: 20px;
         }
         .status-badge {
-            display: inline-block;
+            display: inline-flex;
+            align-items: center;
             padding: 5px 10px;
             border-radius: 12px;
             font-size: 14px;
@@ -76,36 +78,48 @@
             color: #ffffff;
             margin-right: 10px;
             margin-bottom: 10px;
+            cursor: pointer;
         }
-        .status-badge.not-done {
+        .not-done {
             background-color: #d9534f; /* Kırmızı */
             color: #ffffff; /* Beyaz yazı rengi */
         }
-        .status-badge.solved {
+        .solved {
             background-color: #5cb85c; /* Yeşil */
             color: #ffffff; /* Beyaz yazı rengi */
         }
-        .status-badge.in-progress {
+        .in-progress {
             background-color: #f0ad4e; /* Turuncu */
             color: #000000; /* Siyah yazı rengi */
         }
-        .status-badge.under-review {
+        .under-review {
             background-color: #5bc0de; /* Mavi */
             color: #ffffff; /* Beyaz yazı rengi */
         }
-        .status-badge.evaluating {
+        .evaluating {
             background-color: #f0e400; /* Sarı */
             color: #000000; /* Siyah yazı rengi */
+        }
+        .status-info {
+            padding: 5px;
+            border-radius: 10px;
         }
         .response-list {
             margin-top: 20px;
             border-collapse: collapse;
             width: 100%;
+            table-layout: fixed;
         }
-        .response-list th, .response-list td {
+        .response-list th {
             padding: 10px;
             border: 1px solid #e0e0e0;
             color: #000000;
+        }
+        .response-list td {
+            padding: 10px;
+            border: 1px solid #e0e0e0;
+            color: #000000;
+            word-break: break-word;
         }
         .response-list th {
             background-color: #000000;
@@ -125,6 +139,66 @@
             text-align: center;
             margin-top: 20px;
         }
+        .status-checkboxes {
+            margin-bottom: 20px;
+        }
+        .status-checkboxes label {
+            margin-right: 15px;
+            display: inline-flex;
+            align-items: center;
+        }
+        .status-checkboxes input[type="checkbox"] {
+            margin-right: 5px;
+        }
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            font-size: 12px;
+            font-weight: bold;
+            line-height: 1;
+            color: #ffffff;
+            background-color: #000000;
+            border-radius: 10px;
+            margin-left: 5px;
+        }
+        .accordion {
+            border: 1px solid #ddd;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        .accordion-header {
+            cursor: pointer;
+            padding: 10px;
+            background-color: #f5f5f5;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .header-item {
+            flex: 1;
+            text-align: center;
+        }
+
+        .accordion-content {
+            padding: 10px;
+            background-color: #fff;
+        }
+
+        .content-item {
+            margin-bottom: 10px;
+        }
+
+        .accordion:hover > .accordion-header {
+            background-color: #f0e400;
+        }
+
+        .accordion:hover > div {
+            background-color: #f9f9b8;
+        }
+
         @media (max-width: 768px) {
             #app {
                 padding: 10px;
@@ -137,10 +211,50 @@
                 margin-top: 10px;
             }
         }
+
+        .loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.9); /* Hafif beyaz arka plan */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+
+        .spinner {
+            border: 8px solid #f3f3f3; /* Hafif gri */
+            border-top: 8px solid #f0e400; /* Mavi */
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading-screen p {
+            margin-top: 20px;
+            font-size: 18px;
+            color: #333; /* Koyu gri */
+        }
+
     </style>
 </head>
 <body>
     <div id="app">
+        <div v-show="loadingScreen" class="loading-screen">
+            <div class="spinner"></div>
+            <p>Yükleniyor...</p>
+          </div>
+
         <h1>Maxijett Destek Takip</h1>
         <div class="input-container">
             <input v-model="email" type="email" placeholder="Mail adresinizi buraya yazın">
@@ -150,33 +264,30 @@
             <span>Şu mail adresi için gönderilen talepler:</span>
             <div class="email-badge">{{ email }}</div>
         </div>
-        <div v-if="Object.keys(statusCounts).length" class="status-badges">
-            <div v-for="(count, status) in statusCounts" :key="status" class="status-badge" :class="statusClass(status)">
-                {{ status }} ({{ count }})
-            </div>
+        <div v-if="showEmailTitle" class="status-checkboxes">
+            <label v-for="(checked, status) in statusChecks" :key="status">
+                <input type="checkbox" v-model="statusChecks[status]">  
+                <div :class="['status-info', statusClass(status)]">
+                    {{ status }} <span class="badge">{{ statusCounts[status] }}</span>
+                </div>
+            </label>
         </div>
-        <table class="response-list" v-if="responseData.length">
-            <thead>
-                <tr>
-                    <th>Tarih</th>
-                    <th>Ad</th>
-                    <th>Tür</th>
-                    <th>Durum</th>
-                    <th>Detay</th>
-                    <th>Yorum</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr v-for="(item, index) in sortedResponseData" :key="index">
-                    <td>{{ formatDate(item.dateTime) }}</td>
-                    <td>{{ item.name }}</td>
-                    <td>{{ item.type }}</td>
-                    <td>{{ item.status }}</td>
-                    <td>{{ item.detail }}</td>
-                    <td>{{ item.comment || '-' }}</td>
-                </tr>
-            </tbody>
-        </table>
+        <div v-if="filteredResponseData.length">
+            <div v-for="(item, index) in filteredResponseData" :key="index" class="accordion">
+              <div class="accordion-header" @click="toggle(index)">
+                <div class="header-item">{{ formatDate(item.dateTime) }}</div>
+                <div class="header-item">{{ item.name }}</div>
+                <div class="header-item">{{ item.type }}</div>
+                <div class="header-item">{{ item.status }}</div>
+              </div>
+              <div class="accordion-content">
+                <div class="content-item">Detay: {{ item.detail }}</div>
+                <hr>
+                <div class="content-item">Yorum: {{ item.comment || '-' }}</div>
+              </div>
+            </div>
+          </div>
+        
         <div v-else-if="noDataMessage" class="no-data-message">{{ noDataMessage }}</div>
     </div>
 
@@ -184,20 +295,39 @@
         new Vue({
             el: '#app',
             data: {
+                activeIndex: null,
                 email: '',
                 responseData: [],
                 showEmailTitle: false,
                 noDataMessage: '',
-                statusCounts: {}
+                statusCounts: {
+                    'YAPILMAYACAK': 0,
+                    'ÇÖZÜLDÜ': 0,
+                    'ARAŞTIRILIYOR': 0,
+                    'DEĞERLENDİRİLECEK': 0,
+                    'İŞLEMDE': 0
+                },
+                statusChecks: {
+                    'YAPILMAYACAK': true,
+                    'ÇÖZÜLDÜ': true,
+                    'ARAŞTIRILIYOR': true,
+                    'DEĞERLENDİRİLECEK': true,
+                    'İŞLEMDE': true
+                },
+                loadingScreen : false
             },
             computed: {
+                filteredResponseData() {
+                    return this.responseData.filter(item => this.statusChecks[item.status]);
+                },
                 sortedResponseData() {
-                    return this.responseData.slice().sort((a, b) => new Date(b.dateTime) - new Date(a.dateTime));
+                    return this.filteredResponseData.slice().sort((a, b) => new Date(b.dateTime) - new Date(a.dateTime));
                 }
             },
             methods: {
                 sendRequest() {
                     if (this.email) {
+                        this.loadingScreen=true
                         this.fetchData(this.email).then(response => {
                             this.responseData = response;
                             this.showEmailTitle = true;
@@ -207,6 +337,7 @@
                             } else {
                                 this.noDataMessage = '';
                             }
+                            this.loadingScreen=false
                         });
                     } else {
                         alert('Lütfen geçerli bir email adresi girin.');
@@ -222,7 +353,13 @@
                     return this.responseData.reduce((acc, item) => {
                         acc[item.status] = (acc[item.status] || 0) + 1;
                         return acc;
-                    }, {});
+                    }, {
+                        'YAPILMAYACAK': 0,
+                        'ÇÖZÜLDÜ': 0,
+                        'ARAŞTIRILIYOR': 0,
+                        'DEĞERLENDİRİLECEK': 0,
+                        'İŞLEMDE': 0
+                    });
                 },
                 statusClass(status) {
                     switch (status) {
@@ -241,8 +378,11 @@
                     }
                 },
                 formatDate(dateTime) {
-                    const options = { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', timeZoneName: 'short' };
+                    const options = { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' };
                     return new Date(dateTime).toLocaleString('tr-TR', options);
+                },
+                toggle(index) {
+                    this.activeIndex = this.activeIndex === index ? null : index;
                 }
             }
         });
